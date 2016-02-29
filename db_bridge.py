@@ -14,14 +14,14 @@ def on_connect(client, userdata, rc):
 
 class WriteMessage(Thread):
     def __init__(self, topic, payload):
-        super(Thread).__init__(self)
+        Thread.__init__(self)
         self.topic = topic
         self.payload = payload
 
     def run(self):
         session = models.get_session()
         store_entry = Store()
-        store_entry.payload = self.payload
+        store_entry.payload = self.payload.decode("utf-8")
         store_entry.topic = self.topic
         session.add(store_entry)
         session.commit()
