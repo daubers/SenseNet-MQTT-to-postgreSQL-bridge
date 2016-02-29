@@ -17,6 +17,7 @@ class WriteMessage(Thread):
         Thread.__init__(self)
         self.topic = topic
         self.payload = payload
+        self.daemon = True
 
     def run(self):
         session = models.get_session()
