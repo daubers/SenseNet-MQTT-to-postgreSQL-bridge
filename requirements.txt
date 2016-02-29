@@ -1,0 +1,9 @@
+SQLAlchemy
+Tempita
+decorator
+paho-mqtt
+pbr
+psycopg2
+six
+sqlalchemy-migrate
+sqlparse
