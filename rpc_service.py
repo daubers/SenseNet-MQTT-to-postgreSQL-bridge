@@ -3,8 +3,9 @@ from pulsar.apps import rpc, wsgi
 from pulsar.utils.httpurl import JSON_CONTENT_TYPES
 from models import get_session
 from models.store import Store
-from sqlalchemy import distinct
+from sqlalchemy import distinct, and_
 from models.json_encoder import to_dict
+import datetime
 
 
 class RequestCheck:
@@ -30,13 +31,21 @@ class MQTTDatabase(rpc.JSONRPC):
         session = get_session()
         data = session.query(distinct(Store.topic)).all()
         session.close()
-        return data
+        return [topic[0] for topic in data]
 
     def rpc_last_payload_for_topic(self, request, topic):
         session = get_session()
         data = session.query(Store).filter(Store.topic == topic).order_by(Store.timestamp.desc()).first()
         session.close()
         return to_dict(data)
+
+    def rpc_topic_data_between_dates(self, request, topic, from_date, to_date):
+        session = get_session()
+        from_date = datetime.datetime.fromtimestamp(from_date)
+        to_date = datetime.datetime.fromtimestamp(to_date)
+        data = session.query(Store).filter(Store.topic == topic).filter(and_(Store.timestamp >= from_date, Store.timestamp <= to_date)).all()
+        print(data)
+        return [to_dict(i) for i in data]
 
 
 class Site(wsgi.LazyWsgi):
