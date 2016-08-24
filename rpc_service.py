@@ -6,6 +6,26 @@ from models.store import Store
 from sqlalchemy import distinct, and_
 from models.json_encoder import to_dict
 import datetime
+from pulsar.apps.wsgi.response import ResponseMiddleware
+import pprint
+
+
+class OptionsMiddleware(ResponseMiddleware):
+    """Middlewear to make CORS options work
+    """
+    def __init__(self, origin='*', methods=None):
+        self.origin = origin
+        self.methods = methods
+
+    def available(self, environ, response):
+        if response.status_code == 200 and not response.is_streamed:
+            return True
+
+    def execute(self, environ, response):
+        headers = response.headers
+        headers.add_header('Access-Control-Allow-Origin', '*')
+        headers.add_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        headers.add_header('Access-Control-Allow-Headers', 'X-Requested-With')
 
 
 class RequestCheck:
@@ -47,6 +67,24 @@ class MQTTDatabase(rpc.JSONRPC):
         print(data)
         return [to_dict(i) for i in data]
 
+    def rpc_OPTIONS(self, request):
+        return []
+
+
+def test_middleware(environ, start_response=None):
+    pprint.pprint(environ)
+
+class OptionsTest(wsgi.Router):
+    def get(self,request):
+        return None
+
+    def options(self, request):
+        "This method handle requests with get-method"
+        headers = request.response.headers
+        headers.add_header('Access-Control-Allow-Origin', request.environ.get("HTTP_ORIGIN"))
+        headers.add_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        headers.add_header('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type')
+        return request.response
 
 class Site(wsgi.LazyWsgi):
     """WSGI handler for the RPC server"""
@@ -55,9 +93,10 @@ class Site(wsgi.LazyWsgi):
         json_handler = Root().putSubHandler('db', MQTTDatabase())
         middleware = wsgi.Router('/', post=json_handler,
                                  accept_content_types=JSON_CONTENT_TYPES)
-        response = [wsgi.GZipMiddleware(200)]
+        opts_middleware = options=OptionsTest('/')
+        response = [wsgi.GZipMiddleware(200), wsgi.AccessControl()]
         return wsgi.WsgiHandler(middleware=[wsgi.wait_for_body_middleware,
-                                            middleware],
+                                            middleware, opts_middleware],
                                 response_middleware=response)
 
 
